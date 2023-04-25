@@ -28,6 +28,7 @@ stages:
         SourceFolder: '$(System.DefaultWorkingDirectory)'
         Contents: '**/target/*.?(war|jar)'
         TargetFolder: $(Build.ArtifactStagingDirectory)
+ #below task we are publish the artifacts to pipeline artifact so it store under pipeline       
     - task: PublishBuildArtifacts@1
         inputs:
             pathToPublish: $(Build.ArtifactStagingDirectory)
@@ -39,7 +40,10 @@ stages:
   jobs:
   - deployment: DeployLinuxWebApp
     displayName: Deploy Linux Web App
-    environment: 'dev'
+    environment:
+      name: 'uat'
+      resourceType: VirtualMachine
+      tags: web1
     pool:
       vmImage: 'ubuntu-latest'
     strategy:
