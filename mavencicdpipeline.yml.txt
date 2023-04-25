@@ -24,7 +24,7 @@ stages:
         testResultsFiles: '**/surefire-reports/*.xml'
         goals: 'package'
     - task: CopyFiles@2
-    inputs:
+      inputs:
         SourceFolder: '$(System.DefaultWorkingDirectory)'
         Contents: '**/target/*.?(war|jar)'
         TargetFolder: $(Build.ArtifactStagingDirectory)
