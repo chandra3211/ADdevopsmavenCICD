@@ -47,7 +47,7 @@ stages:
           steps:
           - task: JFrogGenericArtifacts@1
             inputs:
-               command: 'upload'
+               command: 'download'
                connection: 'jfog artifactory'
                fileSpec:
                   pattern:"drop"
