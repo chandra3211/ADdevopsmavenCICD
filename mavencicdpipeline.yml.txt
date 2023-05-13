@@ -1,7 +1,7 @@
 trigger:
 - master
 variables:
-- group: groupname
+- group: jfrogauthenticaion
   azureSubscription: 'visualstudio2017"
   webAppname: "myapp"
 
@@ -47,6 +47,9 @@ stages:
       runOnce:
         deploy:
           steps:
+          - task: DownloadArtifacts@1
+            packageType: 'Maven'
+            downloadPath: $(system.ArtifactsDirectory)
           - task: AzureWebApp@1
             displayName: 'Azure Web App Deploy: {{ webAppName }}'
             inputs:
@@ -54,4 +57,6 @@ stages:
               azureSubscription: $(azureSubscription)
               appType: webAppLinux
               appName: $(webAppName)
-              package: '$(Build.ArtifactStagingDirectory)'
+              package: '$(system.ArtifactsDirectory)'
+              
+   Note: we define group variable for jfrog artifacts authentication in VG. so no need to define in downloadartifacts.           
