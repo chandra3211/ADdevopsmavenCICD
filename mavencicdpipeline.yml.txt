@@ -23,16 +23,14 @@ stages:
         jdkVersionOption: '1.8'
         testResultsFiles: '**/surefire-reports/*.xml'
         goals: 'package'
-    - task: CopyFiles@2
-      inputs:
-        SourceFolder: '$(System.DefaultWorkingDirectory)'
-        Contents: '**/target/*.?(war|jar)'
-        TargetFolder: $(Build.ArtifactStagingDirectory)
- #below task we are publish the artifacts to pipeline artifact so it store under pipeline       
-    - task: PublishBuildArtifacts@1
-        inputs:
-            pathToPublish: $(Build.ArtifactStagingDirectory)
-            artifactName: MyBuildOutputs   
+     - task: JFrogGenericArtifacts@1
+       inputs:
+         command: 'upload'
+         connection: 'jfog artifactory'
+         fileSpec:
+            pattern:"(Build.ArtifactStagingDirectory)"
+            source: "drop" # artifact name
+         projectKey: 'proj' 
 - stage: Deploy
   displayName: Deploy stage
   dependsOn: Build
@@ -47,9 +45,14 @@ stages:
       runOnce:
         deploy:
           steps:
-          - task: DownloadArtifacts@1
-            packageType: 'Maven'
-            downloadPath: $(system.ArtifactsDirectory)
+          - task: JFrogGenericArtifacts@1
+            inputs:
+               command: 'upload'
+               connection: 'jfog artifactory'
+               fileSpec:
+                  pattern:"drop"
+                  source: "$(system.ArtifactStagingDirectory)" # artifact name
+               projectKey: 'proj'
           - task: AzureWebApp@1
             displayName: 'Azure Web App Deploy: {{ webAppName }}'
             inputs:
