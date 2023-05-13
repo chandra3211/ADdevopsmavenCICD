@@ -29,7 +29,7 @@ stages:
          connection: 'jfog artifactory'
          fileSpec:
             pattern:"(Build.ArtifactStagingDirectory)"
-            source: "drop" # artifact name
+            target: "drop" # artifact name
          projectKey: 'proj' 
 - stage: Deploy
   displayName: Deploy stage
@@ -50,8 +50,8 @@ stages:
                command: 'download'
                connection: 'jfog artifactory'
                fileSpec:
-                  pattern:"drop"
-                  source: "$(system.ArtifactStagingDirectory)" # artifact name
+                  pattern: "drop" # artifact name
+                  target: "$(system.ArtifactStagingDirectory)" 
                projectKey: 'proj'
           - task: AzureWebApp@1
             displayName: 'Azure Web App Deploy: {{ webAppName }}'
