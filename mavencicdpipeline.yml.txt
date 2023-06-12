@@ -62,4 +62,54 @@ stages:
               appName: $(webAppName)
               package: '$(system.ArtifactsDirectory)'
               
-   Note: we define group variable for jfrog artifacts authentication in VG. so no need to define in downloadartifacts.           
+   Note: we define group variable for jfrog artifacts authentication in VG. so no need to define in downloadartifacts.   
+   
+   ===========================================================================================================================
+   
+   $version = (Get-Item (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe').'(Default)').VersionInfo.FileVersion
+$Source = "\\nrtfsnas.au.ingdirect.intranet\tfsbuildoutput\Devops\Chrome\"
+$Folder = "Chrome_For_Digital"
+$Destination = "C:\temp\"
+$msi = "googlechromestandaloneenterprise.msi"
+$dversion = "98.0.4758.80"
+$update = "C:\Program Files (x86)\Google"
+
+if ($version -eq $null) {
+
+   write-host("Installing chrome")
+
+   Write-Output "Create a folder under Temp Directory"
+   New-Item -ItemType directory -Path $Destination\$Folder 
+   Write-Output "Copy Chrome to Temp Directory"  
+   Copy-Item -Path $source\*.* -Destination $Destination\$Folder 
+   Write-Output "Installing msi for Chrome"
+   Start-Process $Destination\$Folder\$msi -ArgumentList "/quiet"
+   Start-Sleep -Seconds 30
+   Remove-Item $Destination\$Folder -Recurse
+   Remove-Item $update\Update_change -Recurse
+   Rename-Item $update\Update  -NewName "Update_change"
+
+} elseif ($version -ne $dversion  ) {
+ 
+   write-host("Uninstalling chrome")
+
+   $version = (Get-Item (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe').'(Default)').VersionInfo.FileVersion
+   $app = Get-WmiObject -Class Win32_Product | Where-Object {$_.Name -match "Google Chrome"} ; $app.Uninstall()
+   Start-Sleep -Seconds 2
+
+   write-host("Installing chrome")
+   Write-Output "Create a folder under Temp Directory"
+   New-Item -ItemType directory -Path $Destination\$Folder 
+   Write-Output "Copy Chrome to Temp Directory"  
+   Copy-Item -Path $source\*.* -Destination $Destination\$Folder 
+   Write-Output "Installing msi for Chrome"
+   Start-Process $Destination\$Folder\$msi -ArgumentList "/quiet"
+   Start-Sleep -Seconds 30
+   Remove-Item $Destination\$Folder -Recurse
+   Remove-Item $update\Update_change -Recurse
+   Rename-Item $update\Update  -NewName "Update_change"
+    
+} else {
+
+   write-host("Chrome already installed")
+}
