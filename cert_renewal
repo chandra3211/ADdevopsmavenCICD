@@ -1,0 +1,40 @@
+vi san.cnf
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+[req_distinguished_name]
+C = AU
+ST = NSW
+L = Sydney
+O = ING Bank Australia
+OU = AU0435
+CN = ms-npp-payment-agreement-processor
+emailAddress=ML-AU-ID-TeamDexters@ing.com.au
+[v3_req]
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = ms-npp-payment-agreement-processor.au.ing.net
+DNS.2 = ms-npp-payment-agreement-processor.au.ingdirect.intranet
+DNS.3 = ms-npp-payment-agreement-processor.payment.psy6ocp.au.ing.net
+DNS.4 = ms-npp-payment-agreement-processor.payment.psy6ocp-a.au.ing.net
+DNS.5 = ms-npp-payment-agreement-processor.payment.psy6ocp-b.au.ing.net
+
+ 
+openssl req -new -out ms-npp-payment.csr -newkey rsa:2048 -nodes -sha256 -keyout company_san.key.temp -config san.cnf
+
+openssl req -text -noout -verify -in ms-npp-payment.csr
+
+openssl rsa -in company_san.key.temp -out ms-npp-payment.key
+
+openssl x509 -req -days 365 -in ms-npp-payment.csr -signkey ms-npp-payment.key -sha256 -out ms-npp-payment.crt
+
+openssl x509 -in ms-npp-payment.crt -out ms-npp-payment.pem -outform PEM
+
+openssl pkcs12 -export -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -export -in ms-npp-payment.pem -inkey ms-npp-payment.key -name ms-npp-payment-agreement-processor -out ms-npp-payment.p12
+
+keytool -importkeystore -destkeystore ms-npp-payment.jks -deststoretype PKCS12 -srcstoretype PKCS12 -srckeystore ms-npp-payment.p12
+
+keytool -import -alias cl-ms-npp-payment-agreement-processor -keystore cl-ms-npp-payment.jks -file certnew.p7b
