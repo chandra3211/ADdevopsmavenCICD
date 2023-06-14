@@ -1,0 +1,137 @@
+- name: The current java version on the remote server
+  win_shell: java -version
+  register: java_version
+  ignore_errors: True    
+- set_fact:
+     Java_current_Version: "{{ java_version['stderr_lines'][0] }}"    
+- name: current Java version is 
+  debug: 
+     var: Java_current_Version 
+  when: java_version.rc == 0        
+- name: Java is not installed 
+  debug:
+      msg: Java is not installed and continue to be installed
+  when: "'is not recognized as the name of a cmdlet' in java_version.stderr" 
+- fail:
+    msg: "Given version is already existed on the host"   
+  when: "JavaVersion in Java_current_Version"    
+- name: Delete the JAVASoftware Directory
+  win_file:
+     path:  "{{ java_package_root_folder }}" 
+     state: absent   
+  ignore_errors: True
+- name: Create new JAVASoftware Directory
+  win_file:
+     path: "{{ java_package_root_folder }}"
+     state: directory
+- name: create backup folder
+  win_file:
+     path: "{{ java_backup_folder }}"
+     state: directory
+- name: find the cacerts & Java security files for backup
+  win_find:
+      paths: '{{ java_default_path }}'
+      patterns: ['cacerts','java.security']
+      recurse: True
+  register: java_backup 
+  ignore_errors: True              
+- name: take backup of cacerts and Java security files
+  win_copy:
+     src:  '{{ item.path }}'  
+     dest: "{{ java_backup_folder }}"
+     remote_src: yes
+  loop: "{{ java_backup.files | default([]) }}"
+  ignore_errors: True          
+- name: find the Jdbc files for backup in Sonarqube
+  win_find:
+      paths: '{{ java_default_path }}'
+      patterns: ['mssql-jdbc_auth-9.2.0.x64.dll']
+      recurse: True
+  register: openjdk_jdbc_bkp
+  ignore_errors: True 
+  when: ('NSQ' in group_names) or ('SQ' in group_names)
+- name: take backup of sqljdbc for SonarQube server
+  win_copy:
+      src: "{{ item.path }}"
+      dest: "{{ java_backup_folder }}"
+      remote_src: yes
+  with_items: "{{ openjdk_jdbc_bkp.files|default(false) }}"     
+  when: ('NSQ' in group_names) or ('SQ' in group_names)    
+- name: copy java package into JAVASoftware folder
+  win_copy:
+      src: files/
+      dest: "{{ java_package_root_folder }}"
+- name: uninstall current java 
+  win_shell: Get-WmiObject -Class Win32_Product -Filter "Name like '%{{ java_type }}%'" | % {$_.Uninstall()}
+  register: java_uninstall
+- fail: 
+      msg: "Ansible can't be continue when Java uninstallation failed" 
+  when: java_uninstall.rc != 0  
+- name: install latest Java {{ JavaVersion }}
+  win_shell: Start-Process -Wait '{{ jdk_installation }}' -ArgumentList '/s INSTALL_SILENT=1 WEB_JAVA=1'     
+  register: java_installation_output
+  when: (javatype == "jdk") or (javatype == "jre")
+- fail:
+    msg: "java Package was not installed properly"  
+  when: 
+     - (javatype == "jdk") or (javatype == "jre") 
+     - java_installation_output.rc != 0 
+- name: install latest openjdk {{ JavaVersion }}
+  win_shell: Start-Process -Wait '{{ openjdk_installation }}'    
+  register: openjdk_installation_output
+  when: javatype == "openjdk"   
+- fail:
+    msg: "java Package was not installed properly"
+  when: ( javatype == "openjdk" ) and (openjdk_installation_output.rc != 0)  
+- name: current JDK verion after upgrade.
+  win_shell: DIR /AD /B "{{ java_default_path }}" | find "{{ JavaVersion }}"
+  args:
+     executable: cmd
+  register: current_java
+- set_fact:
+     jdk_after_upgrade: "{{ current_java['stdout_lines'][0] }}"   
+- name: set JAVA_HOME variables
+  win_environment:
+      state: present
+      name: JAVA_HOME
+      value: '{{ jdk_jre_path }}'
+      level: machine
+  when: (javatype == "jdk") or (javatype == "jre")    
+- name: set PATH variables
+  win_path:
+      elements:
+        - '%JAVA_HOME%\bin' 
+  when: (javatype == "jdk") or (javatype == "jre") 
+- name: copy backup of sqljdbc file after openjdk upgrade for Sonarqube 
+  win_copy:
+      src:  "{{ java_backup_folder }}mssql-jdbc_auth-9.2.0.x64.dll"
+      dest: "{{ SQ_sqljdbc_path }}"
+      remote_src: yes 
+      force: yes
+  when: ('NSQ' in group_names) or ('SQ' in group_names)    
+- name: copy backup of cacerts file after openjdk upgrade for Sonarqube
+  win_copy:
+     src:  "{{ java_backup_folder }}cacerts"
+     dest: "{{ SQ_cacerts_path }}"
+     remote_src: yes 
+     force: yes
+  when: ('NSQ' in group_names) or ('SQ' in group_names)    
+- name: Display the Latest Java version after upgrade  
+  debug: 
+     var: jdk_after_upgrade
+- name: restart dependent services
+  win_shell: Get-Service -Name "{{ item }}" | Where-Object {$_.Status -eq "running"} | Restart-Service
+  with_items: "{{  dependent_services|default([]) }}"
+  register: service_restart
+  when: dependent_services is defined
+  ignore_errors: True
+- name: output of dependent service after restart 
+  debug:
+     var: service_restart 
+- name: check the status of dependent services
+  win_service:
+     name: '{{ item }}'
+  with_items: '{{ dependent_services|default([]) }}'  
+  register: services_status        
+- debug:
+     var: services_status 
