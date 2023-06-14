@@ -1,0 +1,58 @@
+#please follow below steps to renew windows os level certificates.
+#Create a CSR (certificate signing request) for client
+openssl req -new -out nextgen2.csr -keyout nextgen2.key -config nextgen2.ini
+ 
+# contents of config file nextgen2.ini:
+ 
+[req]
+default_bits=2048
+prompt=no
+encrypt_key=no
+default_md=sha256
+distinguished_name=dn
+ 
+[dn]
+CN=switchweb
+emailAddress=MortgagesITNotifications@ing.com.au
+OU=AU0301
+O=ING
+
+#Create CSR for server certificate
+openssl req -new -out switchweb.csr -keyout switchweb.key -config switchweb.ini
+ 
+# contents of config file switchweb.ini
+ 
+[req]
+default_bits=4096
+prompt=no
+encrypt_key=no
+default_md=sha256
+distinguished_name=dn
+req_extensions=req_ext
+ 
+[dn]
+CN=switchweb
+emailAddress=MortgagesITNotifications@ing.com.au
+OU=AU0301
+O=ING Bank Australia
+L=Sydney
+ST=NSW
+C=AU
+ 
+[req_ext]
+subjectAltName=DNS:switchweb.au.ingdirect.intranet,DNS:switchweb.lb.au.ing.net,DNS:switchweb.au.ing.net,DNS:switchweb
+
+Step2: sign the certificate then we should get .crt or .p7b format
+
+step3:Combining a private key and certificates into a PFX or P12 file
+openssl pkcs12 -export -in nextgen2.cer -inkey nextgen2.key -out nextgen2.pfx
+Note: use this pfx format for import into windows server certificates.
+search for "mmc" then select "local machine" then enter password.
+
+or 
+
+4.	Convert PKCS#12 to PKCS#7.
+openssl pkcs7 -print_certs -in liveweb_11_sep_22_base64.p7b -out cert.cer
+5.	Merge PKCS#7 and private key to create *.pfx file.
+openssl pkcs12 -export -in cert.cer -inkey liveweb.key -out liveweb_11_sep_22_9PM.pfx -name live
+
